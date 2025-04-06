@@ -8,9 +8,6 @@ import {
 } from 'class-validator';
 
 export class RegisterUserDto {
-  @IsString()
-  @MinLength(4)
-  userName: string;
 
   @IsString()
   @IsEmail()

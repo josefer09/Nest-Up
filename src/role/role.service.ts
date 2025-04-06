@@ -25,10 +25,7 @@ export class RoleService {
 
       const role = this.roleRepository.create(createRoleDto);
       const roleSaved = await this.roleRepository.save(role);
-      return {
-        message: HttpResponseMessage.created('Role'),
-        data: roleSaved,
-      }
+      return HttpResponseMessage.created('Role', roleSaved);
     } catch (error) {
       throw error;
     }

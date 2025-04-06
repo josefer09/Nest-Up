@@ -8,38 +8,69 @@ import { Repository } from 'typeorm';
 import { CreateAuthDto } from './dto/create-auth.dto';
 import { UpdateAuthDto } from './dto/update-auth.dto';
 import { EmailService } from 'src/email/email.service';
-import { HashingAdapter } from 'src/common/adapters';
+import { HashingAdapter, UuidAdapter } from 'src/common/adapters';
 import { User } from 'src/user/entities/user.entity';
 import { RegisterUserDto } from './dto';
 import { JwtPayload } from './interfaces';
+import { HttpResponseMessage } from 'src/common/utils';
+import { Token } from './entities/token.entity';
 
 @Injectable()
 export class AuthService {
-
+  private readonly logger = new Logger(AuthService.name);
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @InjectRepository(Token)
+    private readonly tokenRepository: Repository<Token>,
     private readonly configService: ConfigService,
     private readonly emailService: EmailService,
     private readonly hashingAdapter: HashingAdapter,
-    private readonly jwtService: JwtService
+    private readonly uuidAdapter: UuidAdapter,
+    private readonly jwtService: JwtService,
   ) {}
   async registerUser(registeruserDto: RegisterUserDto) {
     try {
       const { password, ...userData } = registeruserDto;
+
+      const emailExist = await this.userRepository.findOne({
+        where: { email: userData.email },
+      });
+      if (emailExist) throw new BadRequestException('Email alredy taken.');
+
       const passworHashing = await this.hashingAdapter.hash(password);
-      const emailExist = await this.userRepository.findOne({ where: { email: userData.email }});
-      if( emailExist ) throw new BadRequestException('Email alredy taken.');
       const user = this.userRepository.create({
         ...userData,
         password: passworHashing,
       });
-      const userSaved = await this.userRepository.save(user);
+
+      const userSaved = await this.userRepository.manager.transaction(
+        async (entityManager) => {
+          const savedUser = await entityManager.save(user);
+
+          // const token = await this.createToken(savedUser.id);
+          const token = entityManager.create(Token, {
+            user: savedUser,
+            token: this.uuidAdapter.generate(),
+          });
+
+          await entityManager.save(token);
+
+          await this.emailService.sendVerificationEmail(
+            savedUser.email,
+            token.token,
+          );
+
+          return savedUser;
+        },
+      );
+
       const { password: _, ...userWithoutPass } = userSaved;
+
       return {
-        msg: 'User Created Successfully.',
-        ...userSaved,
-        token: this.getJwtToken({ email: userSaved.email, id: userSaved.id }),
+        message:
+          'User registered successfully, we sent you a email with the next instructions.',
+        data: userWithoutPass,
       };
     } catch (error) {
       throw error;
@@ -65,5 +96,14 @@ export class AuthService {
   private getJwtToken(payload: JwtPayload) {
     const token = this.jwtService.sign(payload);
     return token;
+  }
+
+  private async createToken(userId: string): Promise<Token> {
+    await this.tokenRepository.delete({ user: { id: userId } });
+    const newToken = this.tokenRepository.create({
+      user: { id: userId },
+      token: this.uuidAdapter.generate(),
+    });
+    return await this.tokenRepository.save(newToken);
   }
 }

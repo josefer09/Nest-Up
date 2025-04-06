@@ -4,16 +4,18 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { EmailModule } from 'src/email/email.module';
 import { User } from 'src/user/entities/user.entity';
-import { HashingAdapter } from 'src/common/adapters';
+import { HashingAdapter, UuidAdapter } from 'src/common/adapters';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { PassportModule } from '@nestjs/passport';
 import { JwtModule } from '@nestjs/jwt';
+import { Token } from './entities/token.entity';
 
 @Module({
   controllers: [AuthController],
-  providers: [AuthService, HashingAdapter, JwtStrategy],
+  providers: [AuthService, HashingAdapter, JwtStrategy, UuidAdapter],
   imports: [
+    TypeOrmModule.forFeature([Token]),
     EmailModule,
     ConfigModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
