@@ -1,19 +1,25 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { JwtService } from '@nestjs/jwt';
 
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 
 import { CreateAuthDto } from './dto/create-auth.dto';
 import { UpdateAuthDto } from './dto/update-auth.dto';
 import { EmailService } from 'src/email/email.service';
 import { HashingAdapter, UuidAdapter } from 'src/common/adapters';
 import { User } from 'src/user/entities/user.entity';
-import { RegisterUserDto } from './dto';
+import { LoginUserDto, RegisterUserDto } from './dto';
 import { JwtPayload } from './interfaces';
 import { HttpResponseMessage } from 'src/common/utils';
 import { Token } from './entities/token.entity';
+import { Role } from 'src/role/entities/role.entity';
 
 @Injectable()
 export class AuthService {
@@ -23,6 +29,8 @@ export class AuthService {
     private readonly userRepository: Repository<User>,
     @InjectRepository(Token)
     private readonly tokenRepository: Repository<Token>,
+    @InjectRepository(Role)
+    private readonly roleRepository: Repository<Role>,
     private readonly configService: ConfigService,
     private readonly emailService: EmailService,
     private readonly hashingAdapter: HashingAdapter,
@@ -31,7 +39,7 @@ export class AuthService {
   ) {}
   async registerUser(registeruserDto: RegisterUserDto) {
     try {
-      const { password, ...userData } = registeruserDto;
+      const { password, roles, ...userData } = registeruserDto;
 
       const emailExist = await this.userRepository.findOne({
         where: { email: userData.email },
@@ -39,9 +47,15 @@ export class AuthService {
       if (emailExist) throw new BadRequestException('Email alredy taken.');
 
       const passworHashing = await this.hashingAdapter.hash(password);
+
+      const foundRoles = await this.roleRepository.findBy({ id: In(roles) });
+      if (foundRoles.length !== roles.length)
+        throw new BadRequestException('Some roles do not exist.');
+
       const user = this.userRepository.create({
         ...userData,
         password: passworHashing,
+        roles: foundRoles,
       });
 
       const userSaved = await this.userRepository.manager.transaction(
@@ -73,6 +87,49 @@ export class AuthService {
         data: userWithoutPass,
       };
     } catch (error) {
+      this.logger.error(`Error registering user: ${error.message}`);
+      throw error;
+    }
+  }
+
+  async loginUser(loginUserDto: LoginUserDto) {
+    const { email, password } = loginUserDto;
+    const INVALID_CREDENTIALS_MSG = 'Invalid credentials.';
+    try {
+      const user = await this.userRepository
+        .createQueryBuilder('user')
+        .where('user.email = :email', { email })
+        .leftJoinAndSelect('user.roles', 'role')
+        .select([
+          'user.id',
+          'user.email',
+          'user.password',
+          'role.name',
+        ])
+        .getOne();
+
+      if (!user) throw new UnauthorizedException(INVALID_CREDENTIALS_MSG);
+
+      //Validate pwd
+      const userVerified = await this.hashingAdapter.compare(
+        password,
+        user.password,
+      );
+      if (!userVerified) throw new UnauthorizedException(INVALID_CREDENTIALS_MSG);
+      
+      const userResponse = {
+        id: user.id,
+        email: user.email,
+        roles: user.roles.map((role) => role.name),
+      };
+      const token = this.getJwtToken(userResponse);
+
+      return HttpResponseMessage.success('Authentication successful.', {
+        user: userResponse,
+        token,
+      });
+    } catch (error) {
+      this.logger.error(`Error logging in user: ${email} - ${error.message}`);
       throw error;
     }
   }
@@ -96,14 +153,5 @@ export class AuthService {
   private getJwtToken(payload: JwtPayload) {
     const token = this.jwtService.sign(payload);
     return token;
-  }
-
-  private async createToken(userId: string): Promise<Token> {
-    await this.tokenRepository.delete({ user: { id: userId } });
-    const newToken = this.tokenRepository.create({
-      user: { id: userId },
-      token: this.uuidAdapter.generate(),
-    });
-    return await this.tokenRepository.save(newToken);
   }
 }

@@ -10,12 +10,13 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { PassportModule } from '@nestjs/passport';
 import { JwtModule } from '@nestjs/jwt';
 import { Token } from './entities/token.entity';
+import { Role } from 'src/role/entities/role.entity';
 
 @Module({
   controllers: [AuthController],
   providers: [AuthService, HashingAdapter, JwtStrategy, UuidAdapter],
   imports: [
-    TypeOrmModule.forFeature([Token]),
+    TypeOrmModule.forFeature([Token, Role]),
     EmailModule,
     ConfigModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
