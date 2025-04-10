@@ -44,6 +44,6 @@ export class User {
 
   @BeforeUpdate()
   checkBeforeUpdate() {
-    this.checkBeforeInsert();
+    if( this.email ) return this.checkBeforeInsert();
   }
 }

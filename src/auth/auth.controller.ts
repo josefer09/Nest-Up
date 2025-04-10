@@ -1,7 +1,6 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, HttpCode, } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, HttpCode, ParseUUIDPipe, Query, } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { UpdateAuthDto } from './dto/update-auth.dto';
-import { LoginUserDto, RegisterUserDto } from './dto';
+import { EmailDto, LoginUserDto, RegisterUserDto } from './dto';
 
 @Controller('auth')
 export class AuthController {
@@ -18,6 +17,16 @@ export class AuthController {
     return this.authService.loginUser(loginUserDto);
   }
 
+  @Get('verify-email')
+  verifyEmail(@Query('token', ParseUUIDPipe) token: string) {
+    return this.authService.verifyEmail(token);
+  }
+
+  @Post('resend-token')
+  resendToken(@Body() emailDto: EmailDto) {
+    return this.authService.resendToken(emailDto);
+  }
+
   @Get()
   findAll() {
     return this.authService.findAll();
@@ -28,10 +37,6 @@ export class AuthController {
     return this.authService.findOne(+id);
   }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateAuthDto: UpdateAuthDto) {
-    return this.authService.update(+id, updateAuthDto);
-  }
 
   @Delete(':id')
   remove(@Param('id') id: string) {

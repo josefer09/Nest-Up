@@ -1,7 +1,9 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   Logger,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -10,12 +12,10 @@ import { JwtService } from '@nestjs/jwt';
 
 import { In, Repository } from 'typeorm';
 
-import { CreateAuthDto } from './dto/create-auth.dto';
-import { UpdateAuthDto } from './dto/update-auth.dto';
 import { EmailService } from 'src/email/email.service';
 import { HashingAdapter, UuidAdapter } from 'src/common/adapters';
 import { User } from 'src/user/entities/user.entity';
-import { LoginUserDto, RegisterUserDto } from './dto';
+import { EmailDto, LoginUserDto, RegisterUserDto } from './dto';
 import { JwtPayload } from './interfaces';
 import { HttpResponseMessage } from 'src/common/utils';
 import { Token } from './entities/token.entity';
@@ -104,18 +104,24 @@ export class AuthService {
           'user.id',
           'user.email',
           'user.password',
+          'user.isActive',
+          'user.isVerified',
           'role.name',
         ])
         .getOne();
+        if (!user) throw new UnauthorizedException(INVALID_CREDENTIALS_MSG);
+        
+        if (!user.isActive) throw new ForbiddenException('Your account has been deactivated. Please contact support.');
 
-      if (!user) throw new UnauthorizedException(INVALID_CREDENTIALS_MSG);
-
-      //Validate pwd
-      const userVerified = await this.hashingAdapter.compare(
-        password,
-        user.password,
-      );
-      if (!userVerified) throw new UnauthorizedException(INVALID_CREDENTIALS_MSG);
+        if (!user.isVerified) throw new ForbiddenException('Please verify your email before logging in.');
+        
+        //Validate pwd
+        const userVerified = await this.hashingAdapter.compare(
+          password,
+          user.password,
+        );
+        if (!userVerified) throw new UnauthorizedException(INVALID_CREDENTIALS_MSG);
+        
       
       const userResponse = {
         id: user.id,
@@ -133,6 +139,84 @@ export class AuthService {
       throw error;
     }
   }
+  
+  async verifyEmail(token: string) {
+    try {
+      const tokenRecord = await this.tokenRepository
+    .createQueryBuilder('token')
+    .where('token.token = :token', { token })
+    .leftJoinAndSelect('token.user', 'user')
+    .select([
+      'token.id',
+      'token.token',
+      'token.expiresAt',
+      'user.id',
+      'user.isActive',
+      'user.isVerified',
+    ])
+    .getOne();
+
+    if (!tokenRecord) 
+      throw new BadRequestException('Invalid or expired token.');
+  
+    if (tokenRecord.isExpired()) 
+      throw new BadRequestException('Token has expired. Please request a new one.');
+
+    const user = tokenRecord.user;
+
+    if (user.isVerified) {
+      throw new BadRequestException('User is alredy verified.');
+    }
+
+    user.isVerified = true;
+
+    await Promise.all([
+      this.userRepository.save(user),
+      this.tokenRepository.delete(tokenRecord.id),
+    ]);
+
+    return HttpResponseMessage.success('Email successfully verified.');
+    } catch (error) {
+      this.logger.error(`Error verifiying token: ${token} - ${error.message}`);
+      throw error;
+    }
+  }
+
+  async resendToken(emailDto: EmailDto) {
+    const { email } = emailDto;
+    const token = await this.createNewToken(email);
+    await this.emailService.sendVerificationEmail(email, token);
+    return HttpResponseMessage.success('A new verification email has been sent.');
+  }
+
+  async forgotPassword(emailDto: EmailDto) {
+    const { email } = emailDto;
+    const token = await this.createNewToken(email);
+    await this.emailService.sendPasswordResetEmail(email, token);
+    return HttpResponseMessage.success('If an account with that email exists, a password reset link has been sent.');
+  }
+
+  private async createNewToken(email: string): Promise<string> {
+    try {
+      const user = await this.userRepository.findOne({ where: { email }, select: { id: true, isActive: true, isVerified: true }});
+      if (!user || !user.isActive) throw new NotFoundException('User not found or inactive.');
+      if (user.isVerified) throw new BadRequestException('User alredy activated.');
+
+      await this.tokenRepository.delete({ user: { id: user.id }});
+
+      const newToken = this.tokenRepository.create({
+        user,
+        token: this.uuidAdapter.generate(),
+      });
+
+      await this.tokenRepository.save(newToken);
+
+      return newToken.token;
+    } catch (error) {
+      this.logger.error(`Error creating new token for email: ${email} = ${error.message}`);
+      throw error;
+    }
+  }
 
   findAll() {
     return `This action returns all auth`;
@@ -140,10 +224,6 @@ export class AuthService {
 
   findOne(id: number) {
     return `This action returns a #${id} auth`;
-  }
-
-  update(id: number, updateAuthDto: UpdateAuthDto) {
-    return `This action updates a #${id} auth`;
   }
 
   remove(id: number) {
