@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, HttpCode, ParseUUIDPipe, Query, } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { EmailDto, LoginUserDto, RegisterUserDto } from './dto';
+import { EmailDto, LoginUserDto, RegisterUserDto, TokenDto } from './dto';
 
 @Controller('auth')
 export class AuthController {
@@ -27,19 +27,13 @@ export class AuthController {
     return this.authService.resendToken(emailDto);
   }
 
-  @Get()
-  findAll() {
-    return this.authService.findAll();
+  @Post('reset-password')
+  resetPassword(@Body() emailDto: EmailDto) {
+    return this.authService.forgotPassword(emailDto);
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.authService.findOne(+id);
-  }
-
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.authService.remove(+id);
+  @Post('validate-token')
+  validateToken(@Body() tokenDto: TokenDto) {
+    return this.authService
   }
 }

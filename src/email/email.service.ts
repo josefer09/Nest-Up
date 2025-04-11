@@ -8,9 +8,11 @@ export class EmailService {
   private transporter: Transporter;
   private readonly emailEnabled: boolean;
   private readonly logger = new Logger(EmailService.name);
+  private readonly companyName: string;
 
   constructor(private readonly configService: ConfigService) {
-    this.emailEnabled = configService.get<boolean>('EMAIL_ENABLED', true);
+    this.emailEnabled = this.configService.get<boolean>('EMAIL_ENABLED', true);
+    this.companyName = this.configService.get<string>('COMPANY_NAME', 'Company_name'),
     this.transporter = nodemailer.createTransport({
       host: this.configService.get<string>('EMAIL_HOST'),
       port: this.configService.get<number>('EMAIL_PORT'),
@@ -44,53 +46,36 @@ export class EmailService {
     }
   }
 
-  // Método para enviar correo de verificación
-  async sendVerificationEmail(to: string, token: string) {
-    const verificationUrl = `https://yourfrontendurl.com/verify-email?token=${token}`;
+  sendVerificationEmail(to: string, token: string) {
+    const verificationUrl = `${this.configService.get('FRONTEND_URL')}/verify-email?token=${token}`;
     const subject = 'Email Verification';
-    const text = `Hello,
+    const html = `
+    <p>Hello,</p>
+    <p>Thank you for registering with us. Please click the link below to verify your email address and complete the registration process:</p>
+    <a href="${verificationUrl}">Click here to verify your email</a>
+    <p>If you did not register, please ignore this email.</p>
+    <p>Best regards,<br>${this.companyName}</p>
+  `;
+  const text = html.replace(/<\/?[^>]+(>|$)/g, "");
 
-      Thank you for registering with us. Please click the link below to verify your email address and complete the registration process:
+  return this.sendMail(to, subject, text, html);
+  }
 
-      ${verificationUrl}
-
-      If you did not register, please ignore this email.
-
-      Best regards,
-      Your Company Name`;
-
+  sendPasswordResetEmail(to: string, token: string) {
+    const resetUrl = `${this.configService.get<string>('FRONTEND_URL')}/reset-password?token=${token}`;
+    
+    const subject = 'Password Reset';
     const html = `
       <p>Hello,</p>
-      <p>Thank you for registering with us. Please click the link below to verify your email address and complete the registration process:</p>
-      <a href="${verificationUrl}">Click here to verify your email</a>
-      <p>If you did not register, please ignore this email.</p>
-      <p>Best regards,<br>Your Company Name</p>
+      <p>We received a request to reset your password. Click the link below to proceed:</p>
+      <a href="${resetUrl}">Reset your password</a>
+      <p>If you did not request this, please ignore this email.</p>
+      <p>Best regards,<br>${this.companyName}</p>
     `;
-
-    // Enviar el correo
-    await this.sendMail(to, subject, text, html);
+  
+    const text = html.replace(/<\/?[^>]+(>|$)/g, "");
+  
+    return this.sendMail(to, subject, text, html);
   }
-
-  async sendPasswordResetEmail(to: string, token: string) {
-    const resetUrl = `https://yourfrontendurl.com/reset-password?token=${token}`;
-    return this.sendMail(
-      to,
-      'Password Reset',
-      `Hello,
-
-      We received a request to reset your password. Click the link below to proceed:
-
-      ${resetUrl}
-
-      If you did not request this, please ignore this email.
-
-      Best regards,
-      Your Company Name`,
-            `<p>Hello,</p>
-            <p>We received a request to reset your password. Click the link below to proceed:</p>
-            <a href="${resetUrl}">Reset your password</a>
-            <p>If you did not request this, please ignore this email.</p>
-            <p>Best regards,<br>Your Company Name</p>`
-    );
-  }
+  
 }

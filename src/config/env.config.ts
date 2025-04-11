@@ -20,6 +20,9 @@ export const EnvConfiguration = () => ({
   NODE_ENV: process.env.NODE_ENV,
   JWT_SECRET: process.env.JWT_SECRET,
   JWT_EXPIRATION: process.env.JWT_EXPIRATION,
+  //? Others
+  FRONTEND_URL: process.env.FRONTEND_URL,
+  COMPANY_NAME: process.env.COMPANY_NAME,
 });
 
 // Esquema de validación con Joi.
@@ -38,4 +41,6 @@ export const envValidationSchema = Joi.object({
   NODE_ENV: Joi.string().default('dev'),
   JWT_SECRET: Joi.string().required(),
   JWT_EXPIRATION: Joi.number().default(3600),
+  FRONTEND_URL: Joi.string(),
+  COMPANY_NAME: Joi.string().default('Company_name'),
 });

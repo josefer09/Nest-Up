@@ -2,7 +2,11 @@ import { HttpStatus } from '@nestjs/common';
 
 export abstract class HttpResponseMessage {
   static success(message: string, data?: object, statusCode: number = HttpStatus.OK) {
-    return { statusCode, message, data: data ?? null };
+    return {
+      statusCode,
+      message,
+      ...(data !== undefined && { data }),
+    };
   }
 
   static created(entity: string, data?: object) {

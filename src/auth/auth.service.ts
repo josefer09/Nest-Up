@@ -20,6 +20,7 @@ import { JwtPayload } from './interfaces';
 import { HttpResponseMessage } from 'src/common/utils';
 import { Token } from './entities/token.entity';
 import { Role } from 'src/role/entities/role.entity';
+import { UserService } from 'src/user/user.service';
 
 @Injectable()
 export class AuthService {
@@ -31,11 +32,12 @@ export class AuthService {
     private readonly tokenRepository: Repository<Token>,
     @InjectRepository(Role)
     private readonly roleRepository: Repository<Role>,
+    private readonly userService: UserService,
     private readonly configService: ConfigService,
     private readonly emailService: EmailService,
+    private readonly jwtService: JwtService,
     private readonly hashingAdapter: HashingAdapter,
     private readonly uuidAdapter: UuidAdapter,
-    private readonly jwtService: JwtService,
   ) {}
   async registerUser(registeruserDto: RegisterUserDto) {
     try {
@@ -109,20 +111,26 @@ export class AuthService {
           'role.name',
         ])
         .getOne();
-        if (!user) throw new UnauthorizedException(INVALID_CREDENTIALS_MSG);
-        
-        if (!user.isActive) throw new ForbiddenException('Your account has been deactivated. Please contact support.');
+      if (!user) throw new UnauthorizedException(INVALID_CREDENTIALS_MSG);
 
-        if (!user.isVerified) throw new ForbiddenException('Please verify your email before logging in.');
-        
-        //Validate pwd
-        const userVerified = await this.hashingAdapter.compare(
-          password,
-          user.password,
+      if (!user.isActive)
+        throw new ForbiddenException(
+          'Your account has been deactivated. Please contact support.',
         );
-        if (!userVerified) throw new UnauthorizedException(INVALID_CREDENTIALS_MSG);
-        
-      
+
+      if (!user.isVerified)
+        throw new ForbiddenException(
+          'Please verify your email before logging in.',
+        );
+
+      //Validate pwd
+      const userVerified = await this.hashingAdapter.compare(
+        password,
+        user.password,
+      );
+      if (!userVerified)
+        throw new UnauthorizedException(INVALID_CREDENTIALS_MSG);
+
       const userResponse = {
         id: user.id,
         email: user.email,
@@ -139,43 +147,45 @@ export class AuthService {
       throw error;
     }
   }
-  
+
   async verifyEmail(token: string) {
     try {
       const tokenRecord = await this.tokenRepository
-    .createQueryBuilder('token')
-    .where('token.token = :token', { token })
-    .leftJoinAndSelect('token.user', 'user')
-    .select([
-      'token.id',
-      'token.token',
-      'token.expiresAt',
-      'user.id',
-      'user.isActive',
-      'user.isVerified',
-    ])
-    .getOne();
+        .createQueryBuilder('token')
+        .where('token.token = :token', { token })
+        .leftJoinAndSelect('token.user', 'user')
+        .select([
+          'token.id',
+          'token.token',
+          'token.expiresAt',
+          'user.id',
+          'user.isActive',
+          'user.isVerified',
+        ])
+        .getOne();
 
-    if (!tokenRecord) 
-      throw new BadRequestException('Invalid or expired token.');
-  
-    if (tokenRecord.isExpired()) 
-      throw new BadRequestException('Token has expired. Please request a new one.');
+      if (!tokenRecord)
+        throw new BadRequestException('Invalid or expired token.');
 
-    const user = tokenRecord.user;
+      if (tokenRecord.isExpired())
+        throw new BadRequestException(
+          'Token has expired. Please request a new one.',
+        );
 
-    if (user.isVerified) {
-      throw new BadRequestException('User is alredy verified.');
-    }
+      const user = tokenRecord.user;
 
-    user.isVerified = true;
+      if (user.isVerified) {
+        throw new BadRequestException('User is alredy verified.');
+      }
 
-    await Promise.all([
-      this.userRepository.save(user),
-      this.tokenRepository.delete(tokenRecord.id),
-    ]);
+      user.isVerified = true;
 
-    return HttpResponseMessage.success('Email successfully verified.');
+      await Promise.all([
+        this.userRepository.save(user),
+        this.tokenRepository.delete(tokenRecord.id),
+      ]);
+
+      return HttpResponseMessage.success('Email successfully verified.');
     } catch (error) {
       this.logger.error(`Error verifiying token: ${token} - ${error.message}`);
       throw error;
@@ -184,25 +194,61 @@ export class AuthService {
 
   async resendToken(emailDto: EmailDto) {
     const { email } = emailDto;
-    const token = await this.createNewToken(email);
-    await this.emailService.sendVerificationEmail(email, token);
-    return HttpResponseMessage.success('A new verification email has been sent.');
+    try {
+      const token = await this.createNewToken(email);
+      await this.emailService.sendVerificationEmail(email, token);
+      return HttpResponseMessage.success(
+        'A new verification email has been sent.',
+      );
+    } catch (error) {
+      this.logger.error(
+        `Error resending token for email: ${email} - ${error.message}`,
+      );
+      throw error;
+    }
   }
 
   async forgotPassword(emailDto: EmailDto) {
     const { email } = emailDto;
-    const token = await this.createNewToken(email);
-    await this.emailService.sendPasswordResetEmail(email, token);
-    return HttpResponseMessage.success('If an account with that email exists, a password reset link has been sent.');
+    try {
+      const token = await this.createNewToken(email);
+      await this.emailService.sendPasswordResetEmail(email, token);
+      return HttpResponseMessage.success(
+        'If an account with that email exists, a password reset link has been sent.',
+      );
+    } catch (error) {
+      this.logger.error(
+        `Error sending token for email: ${email} - ${error.message}`,
+      );
+      throw error;
+    }
+  }
+
+  async validateToken(token: string) {
+    try {
+      const isValidToken = await this.tokenRepository.findOne({
+        where: { token },
+      });
+      if (!isValidToken) throw new UnauthorizedException('Token not valid.');
+      return HttpResponseMessage.success('Valid token, set your new password');
+    } catch (error) {
+      this.logger.error(`Error validatig token - ${error.message}`);
+      throw error;
+    }
   }
 
   private async createNewToken(email: string): Promise<string> {
     try {
-      const user = await this.userRepository.findOne({ where: { email }, select: { id: true, isActive: true, isVerified: true }});
-      if (!user || !user.isActive) throw new NotFoundException('User not found or inactive.');
-      if (user.isVerified) throw new BadRequestException('User alredy activated.');
+      const user = await this.userRepository.findOne({
+        where: { email },
+        select: { id: true, isActive: true, isVerified: true },
+      });
+      if (!user || !user.isActive)
+        throw new NotFoundException('User not found or inactive.');
+      if (user.isVerified)
+        throw new BadRequestException('User alredy activated.');
 
-      await this.tokenRepository.delete({ user: { id: user.id }});
+      await this.tokenRepository.delete({ user: { id: user.id } });
 
       const newToken = this.tokenRepository.create({
         user,
@@ -213,21 +259,11 @@ export class AuthService {
 
       return newToken.token;
     } catch (error) {
-      this.logger.error(`Error creating new token for email: ${email} = ${error.message}`);
+      this.logger.error(
+        `Error creating new token for email: ${email} = ${error.message}`,
+      );
       throw error;
     }
-  }
-
-  findAll() {
-    return `This action returns all auth`;
-  }
-
-  findOne(id: number) {
-    return `This action returns a #${id} auth`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} auth`;
   }
 
   private getJwtToken(payload: JwtPayload) {
