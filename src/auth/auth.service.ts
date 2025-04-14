@@ -15,12 +15,14 @@ import { In, Repository } from 'typeorm';
 import { EmailService } from 'src/email/email.service';
 import { HashingAdapter, UuidAdapter } from 'src/common/adapters';
 import { User } from 'src/user/entities/user.entity';
-import { EmailDto, LoginUserDto, RegisterUserDto } from './dto';
+import { EmailDto, LoginUserDto, RegisterUserDto, TokenDto } from './dto';
 import { JwtPayload } from './interfaces';
-import { HttpResponseMessage } from 'src/common/utils';
+import { generateAlphaNumericToken, HttpResponseMessage } from 'src/common/utils';
 import { Token } from './entities/token.entity';
 import { Role } from 'src/role/entities/role.entity';
 import { UserService } from 'src/user/user.service';
+import { TokenType } from './enums';
+import { UpdatePasswordDto } from './dto/updatePassword.dto';
 
 @Injectable()
 export class AuthService {
@@ -68,6 +70,7 @@ export class AuthService {
           const token = entityManager.create(Token, {
             user: savedUser,
             token: this.uuidAdapter.generate(),
+            tokenType: TokenType.EMAIL_VERIFICATION,
           });
 
           await entityManager.save(token);
@@ -195,7 +198,10 @@ export class AuthService {
   async resendToken(emailDto: EmailDto) {
     const { email } = emailDto;
     try {
-      const token = await this.createNewToken(email);
+      const token = await this.createNewToken(
+        email,
+        TokenType.EMAIL_VERIFICATION,
+      );
       await this.emailService.sendVerificationEmail(email, token);
       return HttpResponseMessage.success(
         'A new verification email has been sent.',
@@ -211,7 +217,7 @@ export class AuthService {
   async forgotPassword(emailDto: EmailDto) {
     const { email } = emailDto;
     try {
-      const token = await this.createNewToken(email);
+      const token = await this.createNewToken(email, TokenType.PASSWORD_RESET);
       await this.emailService.sendPasswordResetEmail(email, token);
       return HttpResponseMessage.success(
         'If an account with that email exists, a password reset link has been sent.',
@@ -224,12 +230,15 @@ export class AuthService {
     }
   }
 
-  async validateToken(token: string) {
+  async validateToken(tokenDto: TokenDto) {
+    const { token } = tokenDto;
     try {
-      const isValidToken = await this.tokenRepository.findOne({
+      const tokenExist = await this.tokenRepository.findOne({
         where: { token },
       });
-      if (!isValidToken) throw new UnauthorizedException('Token not valid.');
+      if (!tokenExist) throw new UnauthorizedException('Token not valid.');
+      if (tokenExist.isExpired()) throw new BadRequestException('Token has expired. Please request a new one.');
+
       return HttpResponseMessage.success('Valid token, set your new password');
     } catch (error) {
       this.logger.error(`Error validatig token - ${error.message}`);
@@ -237,22 +246,41 @@ export class AuthService {
     }
   }
 
-  private async createNewToken(email: string): Promise<string> {
+  async updatePassword(updatePasswordDto: UpdatePasswordDto) {
+    try {
+      return HttpResponseMessage.success('Succes');
+    } catch (error) {
+      this.logger.error(`Error updating password - ${error.message}`);
+      throw error;
+    }
+  }
+
+  private async createNewToken(
+    email: string,
+    tokenType: TokenType,
+  ): Promise<string> {
     try {
       const user = await this.userRepository.findOne({
         where: { email },
         select: { id: true, isActive: true, isVerified: true },
       });
-      if (!user || !user.isActive)
-        throw new NotFoundException('User not found or inactive.');
-      if (user.isVerified)
-        throw new BadRequestException('User alredy activated.');
+
+      if (!user) throw new NotFoundException('User not found or inactive.');
+
+      this.validateUserBeforeCreateToken(user, tokenType);
 
       await this.tokenRepository.delete({ user: { id: user.id } });
 
+      // Valid TokenType
+      const generatorTokenType: string =
+      tokenType === TokenType.EMAIL_VERIFICATION
+        ? this.uuidAdapter.generate()
+        : generateAlphaNumericToken();
+
       const newToken = this.tokenRepository.create({
         user,
-        token: this.uuidAdapter.generate(),
+        token: generatorTokenType,
+        tokenType: tokenType,
       });
 
       await this.tokenRepository.save(newToken);
@@ -266,6 +294,19 @@ export class AuthService {
     }
   }
 
+  private validateUserBeforeCreateToken(
+    user: User,
+    tokenType: TokenType,
+  ) {
+    if (!user || !user.isActive)
+      throw new NotFoundException('User not found or inactive.');
+    if (!user.isVerified && tokenType === TokenType.PASSWORD_RESET)
+      throw new BadRequestException(
+        'Your account has not been verified yet. Please check your email for the verification link before resetting your password.',
+      );
+    if (user.isVerified && tokenType === TokenType.EMAIL_VERIFICATION)
+      throw new BadRequestException('User alredy verified.');
+  }
   private getJwtToken(payload: JwtPayload) {
     const token = this.jwtService.sign(payload);
     return token;

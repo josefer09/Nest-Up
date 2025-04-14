@@ -1,8 +1,9 @@
-import { IsString, MinLength } from "class-validator";
+import { IsString, MaxLength, MinLength } from "class-validator";
 
 
 export class TokenDto {
     @IsString()
-    @MinLength(6)
+    @MinLength(3)
+    @MaxLength(6)
     token: string;
 }

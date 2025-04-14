@@ -1,5 +1,6 @@
 import { User } from "src/user/entities/user.entity";
 import { BeforeInsert, Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, Unique } from "typeorm";
+import { TokenType } from "../enums";
 
 @Entity('tokens')
 @Unique(['user'])
@@ -11,9 +12,11 @@ export class Token {
         nullable: false,
         onDelete: 'CASCADE',
     })
-
     @JoinColumn({ name: 'user_id'})
     user: User;
+
+    @Column('enum', { enum: TokenType, nullable: false })
+    tokenType: TokenType;
 
     @Column('text', { unique: true, nullable: false })
     token: string;
