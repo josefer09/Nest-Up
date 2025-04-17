@@ -3,6 +3,9 @@ import { AuthService } from './auth.service';
 import { EmailDto, LoginUserDto, RegisterUserDto, TokenDto } from './dto';
 import { UpdatePasswordDto } from './dto/updatePassword.dto';
 import { TokenValidationPipe } from './pipes';
+import { Auth, GetUser } from './decorators';
+import { ValidRoles } from './enums';
+import { AuthUser } from './interfaces';
 
 @Controller('auth')
 export class AuthController {
@@ -45,6 +48,13 @@ export class AuthController {
   @HttpCode(200)
   updatePassword(@Body() updatePasswordDto: UpdatePasswordDto, @Query('token', TokenValidationPipe) token: string) {
     return this.authService.updatePassword(updatePasswordDto, token);
+  }
+
+  @Get('test-private')
+  @Auth(ValidRoles.user)
+  testPrivate(@GetUser() user: AuthUser) {
+    
+    return { message: 'success', user };
   }
 
 }

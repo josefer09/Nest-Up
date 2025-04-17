@@ -1,6 +1,6 @@
 import { Role } from 'src/role/entities/role.entity';
 import {
-    BeforeInsert,
+  BeforeInsert,
   BeforeUpdate,
   Column,
   Entity,
@@ -44,6 +44,6 @@ export class User {
 
   @BeforeUpdate()
   checkBeforeUpdate() {
-    if( this.email ) return this.checkBeforeInsert();
+    if (this.email) return this.checkBeforeInsert();
   }
 }
