@@ -10,6 +10,7 @@ import { RoleModule } from './role/role.module';
 import { UserModule } from './user/user.module';
 import { CommonModule } from './common/common.module';
 import { EmailModule } from './email/email.module';
+import { SeedModule } from './seed/seed.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { EmailModule } from './email/email.module';
     UserModule,
     CommonModule,
     EmailModule,
+    SeedModule,
   ],
 })
 export class AppModule {}

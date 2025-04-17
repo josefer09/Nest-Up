@@ -1,6 +1,9 @@
 import {
+  ArrayNotEmpty,
+  IsArray,
   IsEmail,
   IsString,
+  IsUUID,
   Matches,
   MaxLength,
   Min,
@@ -8,10 +11,6 @@ import {
 } from 'class-validator';
 
 export class CreateUserDto {
-  @IsString()
-  @MinLength(4)
-  userName: string;
-
   @IsString()
   @IsEmail()
   email: string;
@@ -28,4 +27,9 @@ export class CreateUserDto {
   @IsString()
   @MinLength(6)
   fullName: string;
+
+  @IsArray({ message: 'Roles must be an array of UUIDs' })
+  @ArrayNotEmpty({ message: 'At least one role must be provided' })
+  @IsUUID('4', { each: true, message: 'Each role must be a valid UUID' })
+  roles: string[];
 }

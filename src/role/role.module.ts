@@ -9,5 +9,6 @@ import { DatabaseExceptionHandler } from 'src/common/providers/postgres-excetion
   imports: [TypeOrmModule.forFeature([Role])],
   controllers: [RoleController],
   providers: [RoleService, DatabaseExceptionHandler],
+  exports: [RoleService],
 })
 export class RoleModule {}

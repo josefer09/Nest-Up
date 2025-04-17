@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
@@ -20,7 +20,7 @@ import { UserModule } from 'src/user/user.module';
     TypeOrmModule.forFeature([Token, Role]),
     EmailModule,
     ConfigModule,
-    UserModule,
+    forwardRef(() => AuthModule), // Use forwardRef to resolve circular dependency with AuthModule
     PassportModule.register({ defaultStrategy: 'jwt' }),
     TypeOrmModule.forFeature([User]),
     JwtModule.registerAsync({

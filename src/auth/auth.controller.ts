@@ -51,7 +51,7 @@ export class AuthController {
   }
 
   @Get('test-private')
-  @Auth(ValidRoles.user)
+  @Auth(ValidRoles.USER)
   testPrivate(@GetUser() user: AuthUser) {
     
     return { message: 'success', user };
