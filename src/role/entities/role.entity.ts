@@ -11,7 +11,7 @@ export class Role {
     @Column('text', { unique: true })
     name: string;
 
-    @ManyToMany(() => User, (user) => user.roles, { lazy: true } )
+    @ManyToMany(() => User, (user) => user.roles, { lazy: false } )
     users: User[];
 
     @BeforeInsert()

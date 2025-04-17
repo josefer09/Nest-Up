@@ -2,6 +2,7 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, HttpCode, ParseUUIDP
 import { AuthService } from './auth.service';
 import { EmailDto, LoginUserDto, RegisterUserDto, TokenDto } from './dto';
 import { UpdatePasswordDto } from './dto/updatePassword.dto';
+import { TokenValidationPipe } from './pipes';
 
 @Controller('auth')
 export class AuthController {
@@ -24,11 +25,13 @@ export class AuthController {
   }
 
   @Post('resend-token')
+  @HttpCode(200)
   resendToken(@Body() emailDto: EmailDto) {
     return this.authService.resendToken(emailDto);
   }
 
   @Post('forgot-password')
+  @HttpCode(200)
   resetPassword(@Body() emailDto: EmailDto) {
     return this.authService.forgotPassword(emailDto);
   }
@@ -39,8 +42,9 @@ export class AuthController {
   }
 
   @Post('update-password')
-  updatePassword(@Body() updatePasswordDto: UpdatePasswordDto) {
-    return this.authService.updatePassword(updatePasswordDto);
+  @HttpCode(200)
+  updatePassword(@Body() updatePasswordDto: UpdatePasswordDto, @Query('token', TokenValidationPipe) token: string) {
+    return this.authService.updatePassword(updatePasswordDto, token);
   }
 
 }

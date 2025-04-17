@@ -2,25 +2,27 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  InternalServerErrorException,
   Logger,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { JwtService } from '@nestjs/jwt';
 
-import { In, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 
 import { EmailService } from 'src/email/email.service';
 import { HashingAdapter, UuidAdapter } from 'src/common/adapters';
 import { User } from 'src/user/entities/user.entity';
 import { EmailDto, LoginUserDto, RegisterUserDto, TokenDto } from './dto';
 import { JwtPayload } from './interfaces';
-import { generateAlphaNumericToken, HttpResponseMessage } from 'src/common/utils';
+import {
+  generateAlphaNumericToken,
+  HttpResponseMessage,
+} from 'src/common/utils';
 import { Token } from './entities/token.entity';
 import { Role } from 'src/role/entities/role.entity';
-import { UserService } from 'src/user/user.service';
 import { TokenType } from './enums';
 import { UpdatePasswordDto } from './dto/updatePassword.dto';
 
@@ -34,32 +36,40 @@ export class AuthService {
     private readonly tokenRepository: Repository<Token>,
     @InjectRepository(Role)
     private readonly roleRepository: Repository<Role>,
-    private readonly userService: UserService,
-    private readonly configService: ConfigService,
     private readonly emailService: EmailService,
     private readonly jwtService: JwtService,
     private readonly hashingAdapter: HashingAdapter,
     private readonly uuidAdapter: UuidAdapter,
   ) {}
+
   async registerUser(registeruserDto: RegisterUserDto) {
     try {
-      const { password, roles, ...userData } = registeruserDto;
+      const { password, ...userData } = registeruserDto;
 
       const emailExist = await this.userRepository.findOne({
         where: { email: userData.email },
       });
-      if (emailExist) throw new BadRequestException('Email alredy taken.');
+      if (emailExist) throw new BadRequestException('Email already taken.');
 
       const passworHashing = await this.hashingAdapter.hash(password);
 
-      const foundRoles = await this.roleRepository.findBy({ id: In(roles) });
-      if (foundRoles.length !== roles.length)
-        throw new BadRequestException('Some roles do not exist.');
+      const role = await this.roleRepository.findOne({
+        where: { name: 'user' },
+        select: { id: true, name: true },
+      });
+      if (!role)
+        throw new InternalServerErrorException(
+          'Default role "user" not found. Contact an administrator.',
+        );
+
+      // const foundRoles = await this.roleRepository.findBy({ id: In(roles) });
+      // if (foundRoles.length !== roles.length)
+      //   throw new BadRequestException('Some roles do not exist.');
 
       const user = this.userRepository.create({
         ...userData,
         password: passworHashing,
-        roles: foundRoles,
+        roles: [role],
       });
 
       const userSaved = await this.userRepository.manager.transaction(
@@ -84,13 +94,17 @@ export class AuthService {
         },
       );
 
-      const { password: _, ...userWithoutPass } = userSaved;
-
-      return {
-        message:
-          'User registered successfully, we sent you a email with the next instructions.',
-        data: userWithoutPass,
+      const { password: _, ...userWithoutPassRoles } = userSaved;
+      const userResponse = {
+        ...userWithoutPassRoles,
+        roles: [role.name],
       };
+
+      return HttpResponseMessage.success(
+        'User registered successfully, we sent you a email with the next instructions.',
+        userResponse,
+        201,
+      );
     } catch (error) {
       this.logger.error(`Error registering user: ${error.message}`);
       throw error;
@@ -178,7 +192,7 @@ export class AuthService {
       const user = tokenRecord.user;
 
       if (user.isVerified) {
-        throw new BadRequestException('User is alredy verified.');
+        throw new BadRequestException('User is already verified.');
       }
 
       user.isVerified = true;
@@ -190,7 +204,7 @@ export class AuthService {
 
       return HttpResponseMessage.success('Email successfully verified.');
     } catch (error) {
-      this.logger.error(`Error verifiying token: ${token} - ${error.message}`);
+      this.logger.error(`Error verifying token: ${token} - ${error.message}`);
       throw error;
     }
   }
@@ -236,19 +250,38 @@ export class AuthService {
       const tokenExist = await this.tokenRepository.findOne({
         where: { token },
       });
-      if (!tokenExist) throw new UnauthorizedException('Token not valid.');
-      if (tokenExist.isExpired()) throw new BadRequestException('Token has expired. Please request a new one.');
+      this.validateTokenPwdExist(tokenExist!);
 
       return HttpResponseMessage.success('Valid token, set your new password');
     } catch (error) {
-      this.logger.error(`Error validatig token - ${error.message}`);
+      this.logger.error(`Error validating token - ${error.message}`);
       throw error;
     }
   }
 
-  async updatePassword(updatePasswordDto: UpdatePasswordDto) {
+  async updatePassword(updatePasswordDto: UpdatePasswordDto, token: string) {
+    const { password } = updatePasswordDto;
     try {
-      return HttpResponseMessage.success('Succes');
+      const tokenExist = await this.tokenRepository
+        .createQueryBuilder('token')
+        .leftJoinAndSelect('token.user', 'user')
+        .addSelect(['user.id', 'user.password'])
+        .where('token.token = :token', { token })
+        .getOne();
+      this.validateTokenPwdExist(tokenExist);
+
+      const user = tokenExist!.user;
+
+      user.password = await this.hashingAdapter.hash(password);
+
+      await Promise.all([
+        this.tokenRepository.delete({ id: tokenExist?.id }),
+        this.userRepository.save(user),
+      ]);
+
+      return HttpResponseMessage.success(
+        'Password updated successfully. You can now log in with your new password.',
+      );
     } catch (error) {
       this.logger.error(`Error updating password - ${error.message}`);
       throw error;
@@ -273,9 +306,9 @@ export class AuthService {
 
       // Valid TokenType
       const generatorTokenType: string =
-      tokenType === TokenType.EMAIL_VERIFICATION
-        ? this.uuidAdapter.generate()
-        : generateAlphaNumericToken();
+        tokenType === TokenType.EMAIL_VERIFICATION
+          ? this.uuidAdapter.generate()
+          : generateAlphaNumericToken();
 
       const newToken = this.tokenRepository.create({
         user,
@@ -294,10 +327,17 @@ export class AuthService {
     }
   }
 
-  private validateUserBeforeCreateToken(
-    user: User,
-    tokenType: TokenType,
-  ) {
+  private validateTokenPwdExist(token: Token | undefined | null): Token {
+    if (!token || token.tokenType !== TokenType.PASSWORD_RESET)
+      throw new UnauthorizedException('Token not valid.');
+    if (token.isExpired())
+      throw new BadRequestException(
+        'Token has expired. Please request a new one.',
+      );
+    return token;
+  }
+
+  private validateUserBeforeCreateToken(user: User, tokenType: TokenType) {
     if (!user || !user.isActive)
       throw new NotFoundException('User not found or inactive.');
     if (!user.isVerified && tokenType === TokenType.PASSWORD_RESET)
@@ -305,7 +345,7 @@ export class AuthService {
         'Your account has not been verified yet. Please check your email for the verification link before resetting your password.',
       );
     if (user.isVerified && tokenType === TokenType.EMAIL_VERIFICATION)
-      throw new BadRequestException('User alredy verified.');
+      throw new BadRequestException('User already verified.');
   }
   private getJwtToken(payload: JwtPayload) {
     const token = this.jwtService.sign(payload);

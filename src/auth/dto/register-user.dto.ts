@@ -29,8 +29,8 @@ export class RegisterUserDto {
   @MinLength(6)
   fullName: string;
 
-  @IsArray({ message: 'Roles must be an array of UUIDs' })
-  @ArrayNotEmpty({ message: 'At least one role must be provided' })
-  @IsUUID('4', { each: true, message: 'Each role must be a valid UUID' })
-  roles: string[];
+  // @IsArray({ message: 'Roles must be an array of UUIDs' })
+  // @ArrayNotEmpty({ message: 'At least one role must be provided' })
+  // @IsUUID('4', { each: true, message: 'Each role must be a valid UUID' })
+  // roles: string[];
 }
