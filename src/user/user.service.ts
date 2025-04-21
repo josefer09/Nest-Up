@@ -16,6 +16,7 @@ import { HttpResponseMessage } from 'src/common/utils';
 import { PaginationDto } from 'src/common/dto/pagination.dto';
 import { AuthUser } from 'src/auth/interfaces';
 import { ChangePasswordDto } from './dto';
+import { EmailService } from 'src/email/email.service';
 
 @Injectable()
 export class UserService {
@@ -25,6 +26,7 @@ export class UserService {
     private readonly userRepository: Repository<User>,
     @InjectRepository(Role)
     private readonly roleRepository: Repository<Role>,
+    private readonly emailService: EmailService,
     private readonly hashingAdapter: HashingAdapter,
   ) {}
 
@@ -128,6 +130,8 @@ export class UserService {
       const user = await this.findUserById(id, {requireActive: false, requireVerified: true});
       user.isActive = isActive;
       await this.userRepository.save(user);
+      if (isActive) await this.emailService.sendAccountUnblockedEmail(user.email);
+      await this.emailService.sendAccountBlockedEmail(user.email);
       return HttpResponseMessage.success(`User has been successfully ${isActive ? 'unblocked' : 'blocked'}.`);
     } catch (error) {
       this.logger.error(
@@ -164,6 +168,7 @@ export class UserService {
     try {
       const user = await this.findUserById(id);
       await this.userRepository.delete(id);
+      await this.emailService.sendAccountDeletedEmail(user.email);
       return HttpResponseMessage.deleted('User', {
         id: user.id,
         fullName: user.fullName,

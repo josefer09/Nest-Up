@@ -8,11 +8,13 @@ import { Role } from 'src/role/entities/role.entity';
 import { RoleModule } from 'src/role/role.module';
 import { HashingAdapter } from 'src/common/adapters';
 import { AuthModule } from 'src/auth/auth.module';
+import { EmailModule } from 'src/email/email.module';
 
 @Module({
   imports: [
     forwardRef(() => AuthModule), // Use forwardRef to resolve circular dependency with AuthModule
     RoleModule,
+    EmailModule,
     TypeOrmModule.forFeature([User, Role])
   ],
   controllers: [UserController],

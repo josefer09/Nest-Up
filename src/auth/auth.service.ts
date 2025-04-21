@@ -25,6 +25,7 @@ import { Token } from './entities/token.entity';
 import { Role } from 'src/role/entities/role.entity';
 import { TokenType } from './enums';
 import { UpdatePasswordDto } from './dto/updatePassword.dto';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class AuthService {
@@ -36,6 +37,7 @@ export class AuthService {
     private readonly tokenRepository: Repository<Token>,
     @InjectRepository(Role)
     private readonly roleRepository: Repository<Role>,
+    private readonly configService: ConfigService,
     private readonly emailService: EmailService,
     private readonly jwtService: JwtService,
     private readonly hashingAdapter: HashingAdapter,
@@ -61,10 +63,6 @@ export class AuthService {
         throw new InternalServerErrorException(
           'Default role "user" not found. Contact an administrator.',
         );
-
-      // const foundRoles = await this.roleRepository.findBy({ id: In(roles) });
-      // if (foundRoles.length !== roles.length)
-      //   throw new BadRequestException('Some roles do not exist.');
 
       const user = this.userRepository.create({
         ...userData,
@@ -348,7 +346,10 @@ export class AuthService {
       throw new BadRequestException('User already verified.');
   }
   private getJwtToken(payload: JwtPayload) {
-    const token = this.jwtService.sign(payload);
+    const token = this.jwtService.sign(payload, {
+      expiresIn: this.configService.get<string>('JWT_EXPIRATION', '3600'),
+      issuer: this.configService.get<string>('JWT_ISSUER', 'myapp'),
+    });
     return token;
   }
 }
