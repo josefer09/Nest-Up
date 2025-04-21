@@ -26,8 +26,6 @@ export class UserService {
     private readonly hashingAdapter: HashingAdapter,
   ) {}
 
-  
-
   async create(createUserDto: CreateUserDto) {
     const { password, roles, ...userData } = createUserDto;
     try {
@@ -51,7 +49,7 @@ export class UserService {
       const { password: _, ...userWithoutPsswd } = userSaved;
       const userResponse = {
         ...userWithoutPsswd,
-        roles: foundRoles.map(role => role.name),
+        roles: foundRoles.map((role) => role.name),
       };
 
       return HttpResponseMessage.created('User', userResponse);
@@ -64,12 +62,12 @@ export class UserService {
   }
 
   async findAll(paginationDto: PaginationDto) {
-    const { limit = 6, offset = 0} = paginationDto;
+    const { limit = 6, offset = 0 } = paginationDto;
     try {
       const users = await this.userRepository.find({
         take: limit,
         skip: offset,
-      })
+      });
       return HttpResponseMessage.success('Users retrieved successfully', users);
     } catch (error) {
       this.logger.error(`Error finding all users - ${error.message}`);
@@ -77,12 +75,10 @@ export class UserService {
     }
   }
 
-  async findOneById(id: string) {
+  async getUserById(id: string) {
     try {
-      const user = await this.userRepository.findOne({ where: { id }, relations: {'roles': true} });
-      if (!user || !user.isActive) throw new NotFoundException(`User with id: ${id} not found or is inactive.`);
-      if (!user.isVerified) throw new ForbiddenException('User must be verified before update.');
-      return HttpResponseMessage.success('User retrieved successfully.', user);
+      const user = await this.findUserById(id);
+      return user;
     } catch (error) {
       this.logger.error(`Error finding user with id: ${id} - ${error.message}`);
       throw error;
@@ -95,25 +91,46 @@ export class UserService {
         where: { id },
         relations: ['roles'],
       });
-  
+
       if (!user || !user.isActive) {
-        throw new NotFoundException(`User with id ${id} not found or inactive.`);
+        throw new NotFoundException(
+          `User with id ${id} not found or inactive.`,
+        );
       }
-      if (!user.isVerified) throw new ForbiddenException('User needs to be verified before updating.');
-  
+      if (!user.isVerified)
+        throw new ForbiddenException(
+          'User needs to be verified before updating.',
+        );
+
       if (updateUserDto.roles && updateUserDto.roles.length > 0) {
         const roles = await this.findRolesExist(updateUserDto.roles);
         user.roles = roles;
       }
-  
+
       const { roles, ...rest } = updateUserDto;
-  
+
       Object.assign(user, rest);
-  
+
       await this.userRepository.save(user);
       return HttpResponseMessage.updated('User', user);
     } catch (error) {
-      this.logger.error(`Error updating user: ${updateUserDto.fullName} - ${error.message}`);
+      this.logger.error(
+        `Error updating user: ${updateUserDto.fullName} - ${error.message}`,
+      );
+      throw error;
+    }
+  }
+
+  async updateStatusUser(id: string, isActive: boolean) {
+    try {
+      const user = await this.findUserById(id, {requireActive: false, requireVerified: true});
+      user.isActive = isActive;
+      await this.userRepository.save(user);
+      return HttpResponseMessage.success(`User has been successfully ${isActive ? 'unblocked' : 'blocked'}.`);
+    } catch (error) {
+      this.logger.error(
+        `Error updating property active for user with id: ${id} - ${error.message}`,
+      );
       throw error;
     }
   }
@@ -130,9 +147,31 @@ export class UserService {
     return user;
   }
 
+  private async findUserById(
+    id: string,
+    options = { requireActive: true, requireVerified: true },
+  ): Promise<User> {
+    try {
+      const user = await this.userRepository.findOne({
+        where: { id },
+        relations: { roles: true },
+      });
+      if (!user) throw new NotFoundException(`User with id: ${id} not found.`);
+      if (options.requireActive && !user.isActive)
+        throw new NotFoundException(`User with id: ${id} is inactive.`);
+      if (options.requireVerified && !user.isVerified)
+        throw new ForbiddenException(`User must be verified.`);
+      return user;
+    } catch (error) {
+      this.logger.error(`Error finding user with id: ${id} - ${error.message}`);
+      throw error;
+    }
+  }
+
   private async findRolesExist(roles: string[]): Promise<Role[]> {
     const foundRoles = await this.roleRepository.findBy({ id: In(roles) });
-      if (foundRoles.length !== roles.length) throw new BadRequestException('Some roles do not exist.');
-      return foundRoles;
+    if (foundRoles.length !== roles.length)
+      throw new BadRequestException('Some roles do not exist.');
+    return foundRoles;
   }
 }

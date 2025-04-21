@@ -23,12 +23,22 @@ export class UserController {
 
   @Get(':id')
   findOneById(@Param('id', ParseUUIDPipe) id: string) {
-    return this.userService.findOneById(id);
+    return this.userService.getUserById(id);
   }
 
   @Patch(':id')
   update(@Param('id', ParseUUIDPipe) id: string, @Body() updateUserDto: UpdateUserDto) {
     return this.userService.update(id, updateUserDto);
+  }
+
+  @Patch(':id/block')
+  blockUser(@Param('id', ParseUUIDPipe) id: string) {
+    return this.userService.updateStatusUser(id, false);
+  }
+
+  @Patch(':id/unblock')
+  unblockUser(@Param('id', ParseUUIDPipe) id: string) {
+    return this.userService.updateStatusUser(id, true);
   }
 
   @Delete(':id')

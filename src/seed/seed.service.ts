@@ -49,7 +49,7 @@ export class SeedService {
         where: { name: In(user.roles) },
       });
 
-      const defaultPassword = 'adminAdmin123'
+      const defaultPassword = 'AdminAdmin1'
       const passwordHash = await this.hashingAdapter.hash(defaultPassword);
 
       const newUser = this.userRepository.create({
