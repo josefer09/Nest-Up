@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
@@ -35,8 +36,7 @@ export class UserService {
 
       const passwordHashing = await this.hashingAdapter.hash(password);
 
-      const foundRoles = await this.roleRepository.findBy({ id: In(roles) });
-      if (foundRoles.length !== roles.length) throw new BadRequestException('Some roles do not exist.');
+      const foundRoles = await this.findRolesExist(roles);
 
       // Create User
       const user = this.userRepository.create({
@@ -77,12 +77,45 @@ export class UserService {
     }
   }
 
-  findOne(id: string) {
-    return `This action returns a #${id} user`;
+  async findOneById(id: string) {
+    try {
+      const user = await this.userRepository.findOne({ where: { id }, relations: {'roles': true} });
+      if (!user || !user.isActive) throw new NotFoundException(`User with id: ${id} not found or is inactive.`);
+      if (!user.isVerified) throw new ForbiddenException('User must be verified before update.');
+      return HttpResponseMessage.success('User retrieved successfully.', user);
+    } catch (error) {
+      this.logger.error(`Error finding user with id: ${id} - ${error.message}`);
+      throw error;
+    }
   }
 
-  update(id: number, updateUserDto: UpdateUserDto) {
-    return `This action updates a #${id} user`;
+  async update(id: string, updateUserDto: UpdateUserDto) {
+    try {
+      const user = await this.userRepository.findOne({
+        where: { id },
+        relations: ['roles'],
+      });
+  
+      if (!user || !user.isActive) {
+        throw new NotFoundException(`User with id ${id} not found or inactive.`);
+      }
+      if (!user.isVerified) throw new ForbiddenException('User needs to be verified before updating.');
+  
+      if (updateUserDto.roles && updateUserDto.roles.length > 0) {
+        const roles = await this.findRolesExist(updateUserDto.roles);
+        user.roles = roles;
+      }
+  
+      const { roles, ...rest } = updateUserDto;
+  
+      Object.assign(user, rest);
+  
+      await this.userRepository.save(user);
+      return HttpResponseMessage.updated('User', user);
+    } catch (error) {
+      this.logger.error(`Error updating user: ${updateUserDto.fullName} - ${error.message}`);
+      throw error;
+    }
   }
 
   remove(id: number) {
@@ -95,5 +128,11 @@ export class UserService {
       throw new NotFoundException(`User with email: ${email} not found.`);
     }
     return user;
+  }
+
+  private async findRolesExist(roles: string[]): Promise<Role[]> {
+    const foundRoles = await this.roleRepository.findBy({ id: In(roles) });
+      if (foundRoles.length !== roles.length) throw new BadRequestException('Some roles do not exist.');
+      return foundRoles;
   }
 }
