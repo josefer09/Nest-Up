@@ -14,6 +14,8 @@ import { Role } from 'src/role/entities/role.entity';
 import { HashingAdapter } from 'src/common/adapters';
 import { HttpResponseMessage } from 'src/common/utils';
 import { PaginationDto } from 'src/common/dto/pagination.dto';
+import { AuthUser } from 'src/auth/interfaces';
+import { ChangePasswordDto } from './dto';
 
 @Injectable()
 export class UserService {
@@ -135,8 +137,42 @@ export class UserService {
     }
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} user`;
+  async changePassword(user: AuthUser, changePasswordDto: ChangePasswordDto) {
+      const { currentPassword, newPassword, } = changePasswordDto;
+      try {
+        const userDB = await this.userRepository.findOne({ where: { id: user.id }, select: { id: true, password: true, isActive: true, isVerified: true, }});
+        console.log(userDB);
+        this.logger.debug(user);
+        if (!userDB || !userDB.isActive) throw new NotFoundException('User not found or inactive.');
+        if (!userDB.isVerified) throw new BadRequestException('Your account has not been verified yet. Please check your email for the verification link before resetting your password.');
+
+        const isValidPassword = await this.hashingAdapter.compare(currentPassword, userDB.password);
+  
+        if (!isValidPassword) throw new BadRequestException('Current password is incorrect.');
+  
+        userDB.password = await this.hashingAdapter.hash(newPassword);
+        await this.userRepository.save(userDB);
+  
+        return HttpResponseMessage.success('Password updated successfully.');
+      } catch (error) {
+        this.logger.error(`Error changing password for user: ${user.fullName} - ${error.message}`);
+        throw error;
+      }
+    }
+
+  async remove(id: string) {
+    try {
+      const user = await this.findUserById(id);
+      await this.userRepository.delete(id);
+      return HttpResponseMessage.deleted('User', {
+        id: user.id,
+        fullName: user.fullName,
+        email: user.email,
+      });
+    } catch (error) {
+      this.logger.error(`Error removing user with id: ${id} - ${error.message}`);
+      throw error;
+    }
   }
 
   private async findUserByEmail(email: string, throwIfNotFound = true) {

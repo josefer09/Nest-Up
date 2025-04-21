@@ -17,9 +17,9 @@ export abstract class HttpResponseMessage {
     return this.success(`${entity} updated successfully`, data);
   }
 
-  static deleted(entity: string) {
-    return this.success(`${entity} deleted successfully`);
-  }
+  static deleted(entity: string, data?: object) {
+    return this.success(`${entity} deleted successfully`, data);
+  }  
 
   // Generic method for greater flexibility
   static custom(message: string, data?: object, statusCode: number = HttpStatus.OK) {

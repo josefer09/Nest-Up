@@ -77,5 +77,44 @@ export class EmailService {
   
     return this.sendMail(to, subject, text, html);
   }
+
+  sendAccountBlockedEmail(to: string) {
+    const subject = 'Account Blocked';
+    const html = `
+      <p>Hello,</p>
+      <p>Your account has been <strong>blocked</strong> due to administrative action.</p>
+      <p>If you think this is a mistake, please contact our support team.</p>
+      <p>Best regards,<br>${this.companyName}</p>
+    `;
+    const text = html.replace(/<\/?[^>]+(>|$)/g, '');
+  
+    return this.sendMail(to, subject, text, html);
+  }
+  
+  sendAccountUnblockedEmail(to: string) {
+    const subject = 'Account Unblocked';
+    const html = `
+      <p>Hello,</p>
+      <p>Your account has been <strong>unblocked</strong>. You can now access your account as usual.</p>
+      <p>Best regards,<br>${this.companyName}</p>
+    `;
+    const text = html.replace(/<\/?[^>]+(>|$)/g, '');
+  
+    return this.sendMail(to, subject, text, html);
+  }
+  
+  sendAccountDeletedEmail(to: string) {
+    const subject = 'Account Deleted';
+    const html = `
+      <p>Hello,</p>
+      <p>We want to inform you that your account has been <strong>deleted</strong>. This action is irreversible.</p>
+      <p>If you did not request this, please contact us immediately.</p>
+      <p>Best regards,<br>${this.companyName}</p>
+    `;
+    const text = html.replace(/<\/?[^>]+(>|$)/g, '');
+  
+    return this.sendMail(to, subject, text, html);
+  }
+  
   
 }

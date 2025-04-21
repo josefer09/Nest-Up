@@ -1,10 +1,20 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, ParseUUIDPipe, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  ParseUUIDPipe,
+  Query,
+} from '@nestjs/common';
+import { CreateUserDto, UpdateUserDto, ChangePasswordDto } from './dto';
 import { UserService } from './user.service';
-import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
-import { Auth } from 'src/auth/decorators';
+import { Auth, GetUser } from 'src/auth/decorators';
 import { ValidRoles } from 'src/auth/enums';
 import { PaginationDto } from 'src/common/dto/pagination.dto';
+import { AuthUser } from 'src/auth/interfaces';
 
 @Controller('user')
 @Auth(ValidRoles.ADMIN)
@@ -21,13 +31,26 @@ export class UserController {
     return this.userService.findAll(paginationDto);
   }
 
+  @Patch('change-password')
+  @Auth()
+  changePassword(
+    @GetUser() user: AuthUser,
+    @Body() changePasswordDto: ChangePasswordDto,
+  ) {
+    console.log('DTO recibido:', changePasswordDto);
+    return this.userService.changePassword(user, changePasswordDto);
+  }
+
   @Get(':id')
   findOneById(@Param('id', ParseUUIDPipe) id: string) {
     return this.userService.getUserById(id);
   }
 
   @Patch(':id')
-  update(@Param('id', ParseUUIDPipe) id: string, @Body() updateUserDto: UpdateUserDto) {
+  update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() updateUserDto: UpdateUserDto,
+  ) {
     return this.userService.update(id, updateUserDto);
   }
 
@@ -43,6 +66,6 @@ export class UserController {
 
   @Delete(':id')
   remove(@Param('id', ParseUUIDPipe) id: string) {
-    return this.userService.remove(+id);
+    return this.userService.remove(id);
   }
 }
