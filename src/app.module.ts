@@ -4,8 +4,13 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ServeStaticModule } from '@nestjs/serve-static';
 
 import { EnvConfiguration, envValidationSchema } from './config';
-import { AuthModule } from './auth/auth.module';
+import { AuthModule } from './modules/auth/auth.module';
 import { join } from 'path';
+import { RoleModule } from '@role/role.module'; 
+import { UserModule } from './modules/user/user.module';
+import { CommonModule } from './common/common.module';
+import { EmailModule } from './modules/email/email.module';
+import { SeedModule } from './modules/seed/seed.module';
 
 @Module({
   imports: [
@@ -30,7 +35,12 @@ import { join } from 'path';
     ServeStaticModule.forRoot({
       rootPath: join(__dirname,'..','public'),
       }),
-    AuthModule
+    AuthModule,
+    RoleModule,
+    UserModule,
+    CommonModule,
+    EmailModule,
+    SeedModule,
   ],
 })
 export class AppModule {}
