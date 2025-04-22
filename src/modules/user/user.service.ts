@@ -106,6 +106,11 @@ export class UserService {
           'User needs to be verified before updating.',
         );
 
+      if (updateUserDto.email) {
+        const emailTaken = await this.findUserByEmail(updateUserDto.email, false);
+        if (emailTaken) throw new BadRequestException('Email already taken.');
+      }
+
       if (updateUserDto.roles && updateUserDto.roles.length > 0) {
         const roles = await this.findRolesExist(updateUserDto.roles);
         user.roles = roles;

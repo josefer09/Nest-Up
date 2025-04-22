@@ -116,6 +116,36 @@ For development purposes, you can populate the database with sample data using:
 GET http://localhost:4000/api/v1/seed
 ```
 
+## ⚙️ Custom Features
+
+### 🔐 Auth Decorators & Guards
+Use @Auth() to protect routes with ease.
+
+@GetUser() decorator to extract the current authenticated user.
+
+Role restriction supported with @Auth(ValidRoles.ADMIN) 🛑
+
+### 🎯 Global Exception Handling
+Global ExceptionFilter implemented to catch and format all thrown errors.
+
+No need to manually handle try/catch blocks everywhere.
+
+Error structure is consistent and ready for frontend parsing.
+
+### 🔁 Interceptors
+Global ResponseInterceptor formats all responses with a standard structure:
+```
+{
+  "statusCode": 200,
+  "message": "Successful operation.",
+  "data": {...}
+}
+
+```
+
+Keeps your frontend happy and reduces repetitive logic. ✨
+
+
 ## ✉️ Stay in touch
 Author: Jose Fernando Hernández Angulo
 
