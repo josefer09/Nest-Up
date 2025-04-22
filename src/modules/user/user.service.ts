@@ -10,13 +10,13 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
 import { In, Repository } from 'typeorm';
-import { Role } from 'src/role/entities/role.entity';
-import { HashingAdapter } from 'src/common/adapters';
-import { HttpResponseMessage } from 'src/common/utils';
-import { PaginationDto } from 'src/common/dto/pagination.dto';
-import { AuthUser } from 'src/auth/interfaces';
+import { Role } from '@role/entities/role.entity';
+import { HashingAdapter } from '@common/adapters';
+import { HttpResponseMessage } from '@common/utils';
+import { PaginationDto } from '@common/dto/pagination.dto';
+import { AuthUser } from '@auth/interfaces';
 import { ChangePasswordDto } from './dto';
-import { EmailService } from 'src/email/email.service';
+import { EmailService } from '@email/email.service';
 
 @Injectable()
 export class UserService {

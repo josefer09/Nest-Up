@@ -30,7 +30,7 @@ Happy coding! 💻🔥
 ## 📁 Project Structure Highlights
 
 - `src/modules/` – Modularized business logic per domain
-- `src/common/` – Shared services, guards, interceptors, constants, filters
+- `@common/` – Shared services, guards, interceptors, constants, filters
 - `src/core/` – Core abstractions, configurations, base services, DI adapters
 - `src/infrastructure/` – ORM entities, persistence implementations, services
 - `src/main.ts` – Application bootstrap and global configurations

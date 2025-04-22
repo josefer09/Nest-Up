@@ -1,9 +1,9 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { HashingAdapter } from 'src/common/adapters';
-import { HttpResponseMessage } from 'src/common/utils';
-import { Role } from 'src/role/entities/role.entity';
-import { User } from 'src/user/entities/user.entity';
+import { HashingAdapter } from '@common/adapters';
+import { HttpResponseMessage } from '@common/utils';
+import { Role } from '@role/entities/role.entity';
+import { User } from '@user/entities/user.entity';
 import { In, Repository } from 'typeorm';
 import { initialSeedData } from './data/seed-data';
 import { ConfigService } from '@nestjs/config';

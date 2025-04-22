@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
 import { SeedService } from './seed.service';
 import { SeedController } from './seed.controller';
-import { AuthModule } from 'src/auth/auth.module';
-import { HashingAdapter } from 'src/common/adapters';
-import { RoleModule } from 'src/role/role.module';
+import { AuthModule } from '@auth/auth.module';
+import { HashingAdapter } from '@common/adapters';
+import { RoleModule } from '@role/role.module';
 
 @Module({
   controllers: [SeedController],

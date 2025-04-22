@@ -9,7 +9,16 @@
     "target": "ES2023",
     "sourceMap": true,
     "outDir": "./dist",
-    "baseUrl": "./",
+    "baseUrl": "./src",
+    "paths": {
+      "@auth/*": ["modules/auth/*"],
+      "@user/*": ["modules/user/*"],
+      "@role/*": ["modules/role/*"],
+      "@email/*": ["modules/email/*"],
+      "@seed/*": ["modules/seed/*"],
+      "@common/*": ["common/*"],
+      "@config/*": ["config/*"]
+    },
     "incremental": true,
     "skipLibCheck": true,
     "strictNullChecks": true,

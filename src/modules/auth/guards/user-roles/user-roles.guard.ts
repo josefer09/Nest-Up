@@ -1,8 +1,8 @@
 import { BadRequestException, CanActivate, ExecutionContext, ForbiddenException, Injectable, Logger } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Observable } from 'rxjs';
-import { META_ROLES } from 'src/auth/decorators';
-import { User } from 'src/user/entities/user.entity';
+import { META_ROLES } from '@auth/decorators';
+import { User } from '@user/entities/user.entity';
 
 @Injectable()
 export class UserRolesGuard implements CanActivate {

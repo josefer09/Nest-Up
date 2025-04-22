@@ -2,16 +2,16 @@ import { forwardRef, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
-import { EmailModule } from 'src/email/email.module';
-import { User } from 'src/user/entities/user.entity';
-import { HashingAdapter, UuidAdapter } from 'src/common/adapters';
+import { EmailModule } from '@email/email.module';
+import { User } from '@user/entities/user.entity';
+import { HashingAdapter, UuidAdapter } from '@common/adapters';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { PassportModule } from '@nestjs/passport';
 import { JwtModule } from '@nestjs/jwt';
 import { Token } from './entities/token.entity';
-import { Role } from 'src/role/entities/role.entity';
-import { UserModule } from 'src/user/user.module';
+import { Role } from '@role/entities/role.entity';
+import { UserModule } from '@user/user.module';
 
 @Module({
   controllers: [AuthController],

@@ -1,5 +1,5 @@
 import { IsString, Matches, MaxLength, MinLength } from 'class-validator';
-import { Match } from 'src/common/decorators/match.decorator.ts/match.decorator.ts.decorator';
+import { Match } from '@common/decorators/match.decorator.ts/match.decorator.ts.decorator';
 
 export class UpdatePasswordDto {
   @IsString()

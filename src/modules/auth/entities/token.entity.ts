@@ -1,4 +1,4 @@
-import { User } from "src/user/entities/user.entity";
+import { User } from "@user/entities/user.entity";
 import { BeforeInsert, Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, Unique } from "typeorm";
 import { TokenType } from "../enums";
 

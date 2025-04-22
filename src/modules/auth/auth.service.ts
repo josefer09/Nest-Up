@@ -12,17 +12,14 @@ import { JwtService } from '@nestjs/jwt';
 
 import { Repository } from 'typeorm';
 
-import { EmailService } from 'src/email/email.service';
-import { HashingAdapter, UuidAdapter } from 'src/common/adapters';
-import { User } from 'src/user/entities/user.entity';
+import { EmailService } from '@email/email.service';
+import { HashingAdapter, UuidAdapter } from '@common/adapters';
+import { User } from '@user/entities/user.entity'; 
 import { EmailDto, LoginUserDto, RegisterUserDto, TokenDto } from './dto';
 import { JwtPayload } from './interfaces';
-import {
-  generateAlphaNumericToken,
-  HttpResponseMessage,
-} from 'src/common/utils';
+import { generateAlphaNumericToken, HttpResponseMessage, } from '@common/utils';
 import { Token } from './entities/token.entity';
-import { Role } from 'src/role/entities/role.entity';
+import { Role } from '@role/entities/role.entity';
 import { TokenType } from './enums';
 import { UpdatePasswordDto } from './dto/updatePassword.dto';
 import { ConfigService } from '@nestjs/config';
