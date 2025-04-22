@@ -27,7 +27,7 @@ export class RoleService {
 
       const role = this.roleRepository.create(createRoleDto);
       const roleSaved = await this.roleRepository.save(role);
-      return HttpResponseMessage.created('Role', roleSaved);
+      return roleSaved;
     } catch (error) {
       this.logger.error(`Error creating role - ${error.message}`);
       throw error;
@@ -41,7 +41,8 @@ export class RoleService {
         take: limit,
         skip: offset,
       })
-      return HttpResponseMessage.success('Roles retrieved successfully.', roles);
+      // return HttpResponseMessage.success('Roles retrieved successfully.', roles); example how use HttpRespongeMessage
+      return roles;
     } catch (error) {
       this.logger.error(`Error getting role - ${error.message}`);
       throw error;
@@ -52,7 +53,7 @@ export class RoleService {
     try {
       const roleExist = await this.roleRepository.findOneBy({id});
       if( !roleExist ) throw new NotFoundException(`Role with id: ${id} not exist.`);
-      return HttpResponseMessage.success('Role retrived successfully.', roleExist);
+      return roleExist;
     } catch (error) {
       this.logger.error(`Error finding role with id: ${id} - ${error.message}`);
       throw error;
@@ -79,7 +80,7 @@ export class RoleService {
       }
     
       await this.roleRepository.save(role);
-      return HttpResponseMessage.updated('Role', role);
+      return role;
     } catch (error) {
       this.logger.error(`Error updating role with id: ${id} - ${error.message}`);
       throw error;
@@ -90,7 +91,7 @@ export class RoleService {
     try {
       const { affected } = await this.roleRepository.delete({ id });
       if( affected === 0 ) throw new NotFoundException(`Role with id: ${id} not found.`);
-      return { message: HttpResponseMessage.deleted('Role') };
+      return;
     } catch (error) {
       this.logger.error(`Error removing role with id: ${id} - ${error.message}`);
       throw error;

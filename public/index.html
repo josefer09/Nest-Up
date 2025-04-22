@@ -29,9 +29,30 @@
           <li><strong>EmailModule</strong>: Email verification and notifications</li>
           <li><strong>RoleModule</strong>: Role-based access control</li>
           <li><strong>CommonModule</strong>: Reusable utilities and decorators</li>
+          <li><strong>SeedModule</strong>: Database seeding and initialization for development and testing</li>
         </ul>
         <a href="https://nestjs.com" target="_blank" class="cta">View NestJS Docs</a>
       </section>
+      <div class="tips-grid">
+        <div class="tip-card">
+          <h3>@Auth Decorator</h3>
+          <p>Protect routes easily using <code>@Auth()</code> in your controllers.</p>
+          <small>Make sure to import <code>AuthModule</code> into the module where you use it.</small>
+        </div>
+      
+        <div class="tip-card">
+          <h3>HttpResponse Helper</h3>
+          <p>Standardize your responses using the <code>HttpResponse</code> utility class.</p>
+          <small>Useful when not relying on interceptors or for customized responses.</small>
+        </div>
+      
+        <div class="tip-card">
+          <h3>Global Exception Handler</h3>
+          <p>Errors are gracefully managed by a centralized <code>GlobalExceptionHandler</code>.</p>
+          <small>No need to wrap try-catch in most services or controllers.</small>
+        </div>
+      </div>
+      
 
       <section class="credits">
         <h2>About the Developer</h2>
