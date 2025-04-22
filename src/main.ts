@@ -4,6 +4,7 @@ import { Logger, ValidationPipe } from '@nestjs/common';
 import { GlobalExceptionFilter } from '@common/filters/global-exception.filter'; 
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ResponseInterceptor } from '@common/interceptors/response.interceptor';
+import { Token } from '@auth/entities/token.entity';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -26,7 +27,9 @@ async function bootstrap() {
     .setVersion('1.0')
     .build();
 
-  const documentFactory = () => SwaggerModule.createDocument(app, config);
+  const documentFactory = () => SwaggerModule.createDocument(app, config, {
+    extraModels: [Token]
+  });
   SwaggerModule.setup('api', app, documentFactory);
 
   app.useGlobalFilters( new GlobalExceptionFilter);
