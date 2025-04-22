@@ -21,6 +21,12 @@ import { SeedModule } from './modules/seed/seed.module';
     }),
     TypeOrmModule.forRootAsync({
       useFactory: async (configService: ConfigService) => ({
+        ssl: configService.get<string>('NODE_ENV') === 'prod' ? true : false,
+        extra: {
+          ssl: configService.get<string>('NODE_ENV') === 'prod'
+          ? { rejectUnauthorized: false }
+          : null,
+        },
         type: 'postgres',
         host: configService.get<string>('DB_HOST'),
         port: configService.get<number>('DB_PORT'),
